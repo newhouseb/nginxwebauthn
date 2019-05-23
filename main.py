@@ -1,16 +1,19 @@
 import random
 import socketserver
 import http.server
+import http.cookies
 import json
 import base64
 import sys
 import os
+import time
 
 from fido2.client import ClientData
 from fido2.server import U2FFido2Server, RelyingParty
 from fido2.ctap2 import AttestationObject, AttestedCredentialData, AuthenticatorData
 from fido2 import cbor
 
+TOKEN_LIFETIME = 60 * 60 * 24
 PORT = 8000
 FORM = """
 <body>
@@ -62,14 +65,54 @@ async function configure() {
 </body>
 """
 
+class TokenManager(object):
+    """Who needs a database when you can just store everything in memory?"""
+
+    def __init__(self):
+        self.tokens = {}
+        self.random = random.SystemRandom()
+
+    def generate(self):
+        t = '%064x' % self.random.getrandbits(8*32)
+        self.tokens[t] = time.time()
+        return t
+
+    def is_valid(self, t):
+        try:
+            return time.time() - self.tokens.get(t, 0) < TOKEN_LIFETIME
+        except Exception:
+            return False
+
+    def invalidate(self, t):
+        if t in self.tokens:
+            del self.tokens[t]
+
+CHALLENGE = {}
+TOKEN_MANAGER = TokenManager()
+
 class AuthHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        if self.path == "/auth":
+        if self.path == '/auth/check':
+            cookie = http.cookies.SimpleCookie(self.headers.get('Cookie'))
+            print(cookie, cookie['token'].value, TOKEN_MANAGER.tokens)
+            if 'token' in cookie and TOKEN_MANAGER.is_valid(cookie['token'].value):
+                self.send_response(200)
+                self.end_headers()
+                return
+
+            self.send_response(401)
+            self.end_headers()
+            return
+
+        if self.path == "/auth/login":
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
             self.wfile.write(bytes(FORM, 'UTF-8'))
             return
+
+        self.send_response(404)
+        self.end_headers()
 
     def do_POST(self):
         origin = self.headers.get('Origin')
@@ -86,6 +129,7 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
+            # Save this challenge to a file so you can kill the host to add the lient via CLI
             with open('.lastchallenge', 'w') as f:
                 f.write(json.dumps(state))
             self.wfile.write(bytes(json.dumps(registration_data), 'UTF-8'))
@@ -101,8 +145,7 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
             auth_data["publicKey"]["challenge"] = str(base64.b64encode(auth_data["publicKey"]["challenge"]), 'utf-8')
             auth_data["publicKey"]["allowCredentials"][0]["id"] = str(base64.b64encode(auth_data["publicKey"]["allowCredentials"][0]["id"]), 'utf-8')
 
-            with open('.lastchallenge', 'w') as f:
-                f.write(json.dumps(state))
+            CHALLENGE.update(state)
 
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
@@ -119,7 +162,7 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
 
             with open('.lastchallenge') as f:
                 server.authenticate_complete(
-                    json.loads(f.read()),
+                    CHALLENGE,
                     creds,
                     credential_id,
                     client_data,
@@ -128,9 +171,16 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
                 )
 
             print("Auth ok!")
+
+            cookie = http.cookies.SimpleCookie()
+            cookie["token"] = TOKEN_MANAGER.generate()
+            cookie["token"]["path"] = "/"
+            cookie["token"]["secure"] = True
+
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
+            self.send_header('Set-Cookie', cookie.output(header=''))
             self.end_headers()
+            self.wfile.write(bytes(json.dumps({'status': 'ok'}), 'UTF-8'))
 
 if len(sys.argv) > 1 and sys.argv[1] == "save-client":
     host = sys.argv[2]
@@ -145,7 +195,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "save-client":
         with open('.credentials', 'wb') as f:
             f.write(auth_data.credential_data)
 
-    print("Credentials save successfully")
+    print("Credentials saved successfully")
 
 else:
     socketserver.TCPServer.allow_reuse_address = True
