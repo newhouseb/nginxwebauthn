@@ -2,11 +2,11 @@
 
 ## What is this for?
 
-If you run some small services on a public-facing server that you would like to protect (i.e. Jupyter of VS code-server) and have a Yubikey or similar, you can use this repository to add secure, public-key authentication to it.
+If you run some small services on a public-facing server that you would like to protect (i.e. Jupyter of VS code-server) and have a Yubikey or similar, you can use this repository to add secure, public-key authentication to them.
 
 ## How?
 
-Set up NGINX to proxy your service, note that you will also need SSL because WebAuthn only works over HTTPS.  I highly recommend using letsencrypt + `certbot` so set up SSL:
+Set up NGINX to proxy your service, note that you will also need SSL because WebAuthn only works over HTTPS.  I highly recommend using Let's Encrypt + `certbot` so set up SSL:
 
 ```
 server {
@@ -61,3 +61,9 @@ That's it! Navigating back to your website will now authenticate you using the k
 
 - At the moment, we only store one set of credentials. It'd be nice to store multiple credentials, especially across different domains.
 - This uses the built-in python3 server, which isn't designed for high-volume. You'd want to port this to a uwsgi setup if you wanted to productionize it. 
+
+## FAQ
+
+*Why do I need to run the `save-client` command?*
+
+This seemed easier than setting up a potentially insecure password so that you could authorize your key. Instead it asserts that you have shell access by requiring that you run a command.
