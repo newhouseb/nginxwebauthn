@@ -2,7 +2,7 @@
 
 ## What is this for?
 
-If you run some small services on a public-facing server that you would like to protect (i.e. Jupyter of VS code-server) and have a Yubikey or similar, you can use this repository to add secure, public-key authentication to them.
+If you run some small services on a public-facing server that you would like to protect (i.e. Jupyter of VS code-server) and have a Yubikey or similar, you can use this repository to add secure, public-key authentication to them **without modifying the original service itself**.
 
 ## How?
 
