@@ -57,7 +57,12 @@ async function configure() {
               clientDataJSON: barraytoa(result.response.clientDataJSON),
               signature: barraytoa(result.response.signature)
             }), headers:{ 'Content-Type': 'application/json' }})
-            window.location.href = "/"
+            let params = await new URLSearchParams(window.location.search);
+            if (params.has('target')) {
+                window.location.href = params.get('target');
+            } else {
+                window.location.href = "/"
+            }
         }
         if (json.error == 'not_configured') {
             configure();
@@ -109,7 +114,7 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        if self.path == "/auth/login":
+        if self.path[:12] == "/auth/login?":
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()

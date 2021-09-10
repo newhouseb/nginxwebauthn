@@ -17,10 +17,15 @@ server {
         proxy_pass http://127.0.0.1:8000;
     }
 
-    # If the authorization server returns 401 Unauthorized, redirect to /atuh/login
+    # auth location can only be used for internal requests
+    location = /auth {
+        internal;
+    }
+
+    # If the authorization server returns 401 Unauthorized, redirect to /auth/login
     error_page 401 = @error401;
     location @error401 {
-        return 302 /auth/login;
+        return 302 /auth/login?target=$uri; # pass along the URI so we can redirect back to it
     }
 
     root /var/www/html;
