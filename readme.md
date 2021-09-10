@@ -62,6 +62,25 @@ Run that from the same place you've checked out this code. You only need to do t
 
 That's it! Navigating back to your website will now authenticate you using the key you just saved.
 
+## Running it as a service
+
+For production the authentication can be run as a `systemd` service. The script contains the necessary provisions to run it as a daemon in the background. The script assumes that it's run by user `webauthn` with home directory `/home/webauthn`. You also have to create the directory `/var/run/webauthn/` and give the user access to it.
+
+An example `systemd` config-file is shown below:
+```
+[Unit]
+Description=Webauthn Server
+
+[Service]
+ExecStart=/home/webauthn/miniconda3/bin/python /home/webauthn/main.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+User=webauthn
+
+[Install]
+WantedBy=default.target
+```
+
 ## Limitations
 
 - At the moment, we only store one set of credentials. It'd be nice to store multiple credentials, especially across different domains.

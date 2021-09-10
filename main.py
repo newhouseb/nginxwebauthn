@@ -232,10 +232,28 @@ if len(sys.argv) > 1 and sys.argv[1] == "save-client":
     print("Credentials saved successfully")
 
 else:
-    socketserver.TCPServer.allow_reuse_address = True
-    httpd = socketserver.TCPServer(("", PORT), AuthHandler)
-    try:
-        print("serving at port", PORT)
-        httpd.serve_forever()
-    finally:
-        httpd.server_close()
+    from daemon import DaemonContext
+    from sys import stdout, stderr, exit
+    from lockfile import FileLock
+    from signal import SIGTERM, SIGTSTP
+
+    def shutdown(signum, frame):
+        exit(0)
+
+    with DaemonContext(
+            chroot_directory=None,
+            working_directory='/home/webauthn',
+            stdout=stdout,
+            stderr=stderr,
+            pidfile=FileLock('/var/run/webauthn/webauthn.pid'),
+            signal_map={
+                SIGTERM: shutdown,
+                SIGTSTP: shutdown
+            }):
+        socketserver.TCPServer.allow_reuse_address = True
+        httpd = socketserver.TCPServer(("", PORT), AuthHandler)
+        try:
+            print("serving at port", PORT)
+            httpd.serve_forever()
+        finally:
+            httpd.server_close()
