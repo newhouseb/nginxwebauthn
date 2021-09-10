@@ -9,7 +9,8 @@ import os
 import time
 
 from fido2.client import ClientData
-from fido2.server import U2FFido2Server, RelyingParty
+from fido2.webauthn import PublicKeyCredentialRpEntity
+from fido2.server import U2FFido2Server
 from fido2.ctap2 import AttestationObject, AttestedCredentialData, AuthenticatorData
 from fido2 import cbor
 
@@ -137,7 +138,7 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
         origin = self.headers.get('Origin')
         host = origin[len('https://'):]
 
-        rp = RelyingParty(host, 'NGINX Auth Server')
+        rp = PublicKeyCredentialRpEntity(host, 'NGINX Auth Server')
         server = U2FFido2Server(origin, rp)
 
         if self.path == "/auth/get_challenge_for_new_key":
@@ -211,7 +212,7 @@ if len(sys.argv) > 1 and sys.argv[1] == "save-client":
     client_data = ClientData(base64.b64decode(sys.argv[3]))
     attestation_object = AttestationObject(base64.b64decode(sys.argv[4]))
 
-    rp = RelyingParty(host, 'NGINX Auth Server')
+    rp = PublicKeyCredentialRpEntity(host, 'NGINX Auth Server')
     server = U2FFido2Server('https://' + host, rp)
 
     with open('.lastchallenge') as f:
