@@ -100,7 +100,7 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/auth/check':
             cookie = http.cookies.SimpleCookie(self.headers.get('Cookie'))
-            if 'token' in cookie and TOKEN_MANAGER.is_valid(cookie['token'].value):
+            if '__Secure-Token' in cookie and TOKEN_MANAGER.is_valid(cookie['__Secure-Token'].value):
                 self.send_response(200)
                 self.end_headers()
                 return
@@ -118,15 +118,16 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
 
         if self.path == '/auth/logout':
             cookie = http.cookies.SimpleCookie(self.headers.get('Cookie'))
-            if 'token' in cookie:
-                TOKEN_MANAGER.invalidate(cookie['token'].value)
+            if '__Secure-Token' in cookie:
+                TOKEN_MANAGER.invalidate(cookie['__Secure-Token'].value)
 
             # This just replaces the token with garbage
             self.send_response(302)
             cookie = http.cookies.SimpleCookie()
-            cookie["token"] = '***'
-            cookie["token"]["path"] = '/'
-            cookie["token"]["secure"] = True
+            cookie["__Secure-Token"] = ''
+            cookie["__Secure-Token"]["path"] = '/'
+            cookie["__Secure-Token"]["secure"] = True
+            cookie["__Secure-Token"]["max-age"] = 0 # remove the cookie ASAP
             self.send_header('Set-Cookie', cookie.output(header=''))
             self.send_header('Location', '/')
             self.end_headers()
@@ -198,9 +199,12 @@ class AuthHandler(http.server.BaseHTTPRequestHandler):
                 )
 
             cookie = http.cookies.SimpleCookie()
-            cookie["token"] = TOKEN_MANAGER.generate()
-            cookie["token"]["path"] = "/"
-            cookie["token"]["secure"] = True
+            cookie["__Secure-Token"] = TOKEN_MANAGER.generate()
+            cookie["__Secure-Token"]["path"] = "/"
+            cookie["__Secure-Token"]["secure"] = True
+            cookie["__Secure-Token"]["httponly"] = True
+            cookie["__Secure-Token"]["samesite"] = 'Strict'
+            cookie["__Secure-Token"]["max-age"] = TOKEN_LIFETIME
 
             self.send_response(200)
             self.send_header('Set-Cookie', cookie.output(header=''))
