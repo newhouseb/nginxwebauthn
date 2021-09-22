@@ -83,7 +83,7 @@ WantedBy=default.target
 
 ## Limitations
 
-- At the moment, we only store one set of credentials. It'd be nice to store multiple credentials, especially across different domains.
+- ~~At the moment, we only store one set of credentials. It'd be nice to store multiple credentials, especially across different domains.~~ Now supports multiple credentials :partying_face:!
 - This uses the built-in python3 server, which isn't designed for high-volume. You'd want to port this to a uwsgi setup if you wanted to productionize it. 
 
 ## FAQ
