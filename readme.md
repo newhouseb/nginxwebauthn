@@ -17,10 +17,15 @@ server {
         proxy_pass http://127.0.0.1:8000;
     }
 
-    # If the authorization server returns 401 Unauthorized, redirect to /atuh/login
+    # auth location can only be used for internal requests
+    location = /auth {
+        internal;
+    }
+
+    # If the authorization server returns 401 Unauthorized, redirect to /auth/login
     error_page 401 = @error401;
     location @error401 {
-        return 302 /auth/login;
+        return 302 /auth/login?target=$uri; # pass along the URI so we can redirect back to it
     }
 
     root /var/www/html;
@@ -57,9 +62,28 @@ Run that from the same place you've checked out this code. You only need to do t
 
 That's it! Navigating back to your website will now authenticate you using the key you just saved.
 
+## Running it as a service
+
+For production the authentication can be run as a `systemd` service. The script contains the necessary provisions to run it as a daemon in the background. The script assumes that it's run by user `webauthn` with home directory `/home/webauthn`. You also have to create the directory `/var/run/webauthn/` and give the user access to it.
+
+An example `systemd` config-file is shown below:
+```
+[Unit]
+Description=Webauthn Server
+
+[Service]
+ExecStart=/home/webauthn/miniconda3/bin/python /home/webauthn/main.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+User=webauthn
+
+[Install]
+WantedBy=default.target
+```
+
 ## Limitations
 
-- At the moment, we only store one set of credentials. It'd be nice to store multiple credentials, especially across different domains.
+- ~~At the moment, we only store one set of credentials. It'd be nice to store multiple credentials, especially across different domains.~~ Now supports multiple credentials :partying_face:!
 - This uses the built-in python3 server, which isn't designed for high-volume. You'd want to port this to a uwsgi setup if you wanted to productionize it. 
 
 ## FAQ
